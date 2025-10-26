@@ -38,14 +38,16 @@ def draw_hooks(hooks):
             screen.blit(flip_hook,hook)
 
 def check_collision(pipes, monsters):
+    collision_rect = shark_rect.inflate(-20, -20) 
+    
     for pipe in pipes:
-        if shark_rect.colliderect(pipe):
+        if collision_rect.colliderect(pipe):
             death_sound.play()
             return False
     if shark_rect.top <= -100 or shark_rect.bottom >= 900:
         return False
     for monster in monsters:
-        if shark_rect.colliderect(monster):
+        if collision_rect.colliderect(monster):
             death_sound.play()
             return False
     return True
