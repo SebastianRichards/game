@@ -1,4 +1,4 @@
-import pygame, sys, random
+import pygame, sys, random, asyncio
 
 def draw_floor():
     screen.blit(floor_surface,(floor_x_pos,655))
@@ -15,14 +15,14 @@ def create_monster():
     monster_position = monster_surface.get_rect(center = (700, random_monster_position))
     return monster_position
 
-def move_monster(monsters):
+def move_monster(monsters, dt):
     for monster in monsters:
-        monster.centerx -= 6
+        monster.centerx -= monster_speed * dt
     return monsters
 
-def move_hooks(hooks):
+def move_hooks(hooks, dt):
     for hook in hooks:
-        hook.centerx -= 5
+        hook.centerx -= hook_speed * dt
     return hooks
 
 def draw_monsters(monsters):
@@ -51,7 +51,9 @@ def check_collision(pipes, monsters):
     return True
 
 def rotate_shark(shark):
-    new_shark = pygame.transform.rotozoom(shark,shark_movement * -3,1)
+    # Clamp rotation to a reasonable range for the dip effect (-30 to 30 degrees)
+    rotation_angle = max(-20, min(20, shark_movement * -0.1))
+    new_shark = pygame.transform.rotozoom(shark, rotation_angle, 1)
     return new_shark
 
 def shark_animation():
@@ -96,8 +98,13 @@ screen = pygame.display.set_mode((490,765))
 clock = pygame.time.Clock()
 
 #GAME VARIABLES
-gravity = 0.10
+gravity = 600.0  # pixels per second squared
 shark_movement = 0
+shark_jump_speed = -300.0  # pixels per second
+hook_speed = 200.0  # pixels per second
+monster_speed = 360.0  # pixels per second
+floor_speed = 60.0  # pixels per second
+score_increment = 1.0  # points per second
 score = 0
 high_score = 0
 
@@ -175,99 +182,107 @@ score_sound = pygame.mixer.Sound('assets/sfx_point.wav')
 monster_sound = pygame.mixer.Sound('assets/sample.wav')
 
 
-#game loop
-while True:
+async def main():
+    global game_active, shark_movement, score, high_score, floor_x_pos
+    global hook_list, monster_list, shark_rect, shark_surface, shark_index
+    global monster_surface, monster_index, floor_surface, floor_index
+    
+    while True:
+    # Get delta time in seconds
+        dt = clock.tick(120) / 1000.0  # Convert milliseconds to seconds
 
-    #we're doing this so we can create our game loop and exit it too
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            #need to use sys otherwise we get an error just with the while loop
-            sys.exit()
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE and game_active:
-                shark_movement = 0
-                shark_movement -= 5
-            #newgame function
-            if event.key == pygame.K_SPACE and game_active == False:
-                game_active = True
-                hook_list.clear()
-                monster_list.clear()
-                shark_rect.center = (100,512)
-                shark_movement = 0
-                score = 0
+        #we're doing this so we can create our game loop and exit it too
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                #need to use sys otherwise we get an error just with the while loop
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE and game_active:
+                    shark_movement = shark_jump_speed
+                #newgame function
+                if event.key == pygame.K_SPACE and game_active == False:
+                    game_active = True
+                    hook_list.clear()
+                    monster_list.clear()
+                    shark_rect.center = (100,512)
+                    shark_movement = 0
+                    score = 0
 
-        #if event.type == SPAWNHOOK:
-            #hook_list.extend(create_hook())
-        if event.type == MONSTERBITE:
-            if monster_index < 1:
-                monster_index += 1
-            else:
-                monster_index = 0
-            monster_surface = monster_animation()
-
-
-        #if event.type == SPAWNMONSTER:
-            #monster_list.append(create_monster())
-        if event.type == SPAWNSOMETHING:
-            selected_event = random.choice(event_list)
-            if selected_event == "hook":
-                hook_list.extend(create_hook())
-            else:
-                monster_list.append(create_monster())
-                if game_active == True:
-                    monster_sound.play()
-
-        if event.type == SHARKFLAP:
-            if shark_index < 4:
-                shark_index += 1
-            else:
-                shark_index = 0
-
-            shark_surface, shark_rect = shark_animation()
-        if event.type == CORALEVENT:
-            if floor_index < 1:
-                floor_index += 1
-            else:
-                floor_index = 0
-            floor_surface = coral_animation()
+            #if event.type == SPAWNHOOK:
+                #hook_list.extend(create_hook())
+            if event.type == MONSTERBITE:
+                if monster_index < 1:
+                    monster_index += 1
+                else:
+                    monster_index = 0
+                monster_surface = monster_animation()
 
 
+            #if event.type == SPAWNMONSTER:
+                #monster_list.append(create_monster())
+            if event.type == SPAWNSOMETHING:
+                selected_event = random.choice(event_list)
+                if selected_event == "hook":
+                    hook_list.extend(create_hook())
+                else:
+                    monster_list.append(create_monster())
+                    if game_active == True:
+                        monster_sound.play()
+
+            if event.type == SHARKFLAP:
+                if shark_index < 4:
+                    shark_index += 1
+                else:
+                    shark_index = 0
+
+                shark_surface, shark_rect = shark_animation()
+            if event.type == CORALEVENT:
+                if floor_index < 1:
+                    floor_index += 1
+                else:
+                    floor_index = 0
+                floor_surface = coral_animation()
 
 
 
-    screen.blit(bg_surface,(0,0))
-
-    if game_active == True:
-        #shark
-        shark_movement += gravity
-        rotated_shark = rotate_shark(shark_surface)
-        shark_rect.centery += shark_movement
-        screen.blit(rotated_shark,(shark_rect))
-        game_active = check_collision(hook_list, monster_list)
-
-        #hooks
-        hook_list = move_hooks(hook_list)
-        draw_hooks(hook_list)
-
-        monster_list = move_monster(monster_list)
-        draw_monsters(monster_list)
-
-        #score
-        score_display('main_game')
-        score += 0.01
-    else:
-        screen.blit(game_over_surface,game_over_rect)
-        high_score = update_score(score,high_score)
-        score_display('game_over')
 
 
-    #floor
-    floor_x_pos -= 1
-    draw_floor()
-    if floor_x_pos <= -536:
-        floor_x_pos = 0
+        screen.blit(bg_surface,(0,0))
 
-    pygame.display.update()
-    #this limits the frame rate, no more than 120 fps
-    clock.tick(120)
+        if game_active == True:
+            #shark
+            shark_movement += gravity * dt
+            rotated_shark = rotate_shark(shark_surface)
+            shark_rect.centery += shark_movement * dt
+            screen.blit(rotated_shark,(shark_rect))
+            game_active = check_collision(hook_list, monster_list)
+
+            #hooks
+            hook_list = move_hooks(hook_list, dt)
+            draw_hooks(hook_list)
+
+            monster_list = move_monster(monster_list, dt)
+            draw_monsters(monster_list)
+
+            #score
+            score_display('main_game')
+            score += score_increment * dt
+        else:
+            screen.blit(game_over_surface,game_over_rect)
+            high_score = update_score(score,high_score)
+            score_display('game_over')
+
+
+        #floor
+        floor_x_pos -= floor_speed * dt
+        draw_floor()
+        if floor_x_pos <= -536:
+            floor_x_pos = 0
+
+        pygame.display.update()
+        #this limits the frame rate, no more than 120 fps - dt already calculated above
+        await asyncio.sleep(0)  # Allow other tasks to run
+    #game loop
+
+asyncio.run(main())
