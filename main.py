@@ -89,7 +89,7 @@ def update_score(score, high_score):
 
 pygame.init()
 
-game_font = pygame.font.Font("04B_19.ttf",40)
+game_font = pygame.font.Font(None, 40)
 
 screen = pygame.display.set_mode((490,765))
 
@@ -170,9 +170,9 @@ game_over_surface = pygame.transform.scale2x(pygame.image.load('assets/gameovers
 game_over_rect = game_over_surface.get_rect(center = (245,375))
 
 
-death_sound = pygame.mixer.Sound('sound/Nope.wav')
-score_sound = pygame.mixer.Sound('sound/sfx_point.wav')
-monster_sound = pygame.mixer.Sound('sound/sample.wav')
+death_sound = pygame.mixer.Sound('assets/Nope.wav')
+score_sound = pygame.mixer.Sound('assets/sfx_point.wav')
+monster_sound = pygame.mixer.Sound('assets/sample.wav')
 
 
 #game loop
