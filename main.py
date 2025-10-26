@@ -243,6 +243,19 @@ async def main():
                     shark_movement = 0
                     score = 0
 
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1 and game_active:  
+                    shark_movement = shark_jump_speed
+                if event.button == 1 and game_active == False:  
+                    game_active = True
+                    hook_list.clear()
+                    monster_list.clear()
+                    scored_hooks.clear()
+                    scored_monsters.clear()
+                    shark_rect.center = (100,512)
+                    shark_movement = 0
+                    score = 0
+
             #if event.type == SPAWNHOOK:
                 #hook_list.extend(create_hook())
             if event.type == MONSTERBITE:
