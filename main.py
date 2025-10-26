@@ -89,6 +89,30 @@ def update_score(score, high_score):
         high_score = score
     return high_score
 
+def check_score(hooks, monsters):
+    global score, scored_hooks, scored_monsters
+    
+    # Check hooks - score when shark passes through the gap
+    for i in range(0, len(hooks), 2):
+        if i + 1 < len(hooks):  # Make sure we have a complete pair
+            bottom_hook = hooks[i]
+            top_hook = hooks[i + 1]
+            # Check if shark has passed the hook pair and hasn't been scored yet
+            if (bottom_hook.centerx < shark_rect.centerx and 
+                id(bottom_hook) not in scored_hooks):
+                score += 1
+                scored_hooks.add(id(bottom_hook))
+                scored_hooks.add(id(top_hook))
+                score_sound.play()
+    
+    # Check monsters - score when shark passes by them
+    for monster in monsters:
+        if (monster.centerx < shark_rect.centerx and 
+            id(monster) not in scored_monsters):
+            score += 1
+            scored_monsters.add(id(monster))
+            score_sound.play()
+
 pygame.init()
 
 game_font = pygame.font.Font(None, 40)
@@ -107,6 +131,10 @@ floor_speed = 60.0  # pixels per second
 score_increment = 1.0  # points per second
 score = 0
 high_score = 0
+
+# Sets to track which obstacles have been scored
+scored_hooks = set()
+scored_monsters = set()
 
 game_active = True
 
@@ -179,6 +207,7 @@ game_over_rect = game_over_surface.get_rect(center = (245,375))
 
 death_sound = pygame.mixer.Sound('assets/Nope.wav')
 score_sound = pygame.mixer.Sound('assets/sfx_point.wav')
+score_sound.set_volume(0.3)  
 monster_sound = pygame.mixer.Sound('assets/sample.wav')
 
 
@@ -186,6 +215,7 @@ async def main():
     global game_active, shark_movement, score, high_score, floor_x_pos
     global hook_list, monster_list, shark_rect, shark_surface, shark_index
     global monster_surface, monster_index, floor_surface, floor_index
+    global scored_hooks, scored_monsters
     
     while True:
     # Get delta time in seconds
@@ -205,6 +235,8 @@ async def main():
                     game_active = True
                     hook_list.clear()
                     monster_list.clear()
+                    scored_hooks.clear()
+                    scored_monsters.clear()
                     shark_rect.center = (100,512)
                     shark_movement = 0
                     score = 0
@@ -265,9 +297,9 @@ async def main():
             monster_list = move_monster(monster_list, dt)
             draw_monsters(monster_list)
 
-            #score
+            #score - check for passing obstacles
+            check_score(hook_list, monster_list)
             score_display('main_game')
-            score += score_increment * dt
         else:
             screen.blit(game_over_surface,game_over_rect)
             high_score = update_score(score,high_score)
